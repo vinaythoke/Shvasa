@@ -9,7 +9,7 @@ interface Particle {
 }
 
 interface ParticleRingProps {
-    phase: 'inhale' | 'exhale' | 'hold' | 'holdIn' | 'holdOut' | 'idle' | 'pulse';
+    phase: 'inhale' | 'exhale' | 'hold' | 'holdIn' | 'holdOut' | 'idle' | 'pulse' | 'retention';
     color: string; // Hex color
     duration: number; // Duration of phase in seconds
 }

@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { ParticleRing } from './ParticleRing';
 
-export type BreathingPhase = 'inhale' | 'exhale' | 'hold' | 'holdIn' | 'holdOut' | 'idle' | 'pulse';
+export type BreathingPhase = 'inhale' | 'exhale' | 'hold' | 'holdIn' | 'holdOut' | 'idle' | 'pulse' | 'retention';
 
 interface BreathingCircleProps {
     phase: BreathingPhase;
@@ -18,7 +18,7 @@ export const BreathingCircle: React.FC<BreathingCircleProps> = ({
     label,
     sublabel,
     color = '#FFFFFF',
-    textColor = '#FFFFFF' // Default white for dark thermostat
+    textColor = '#FFFFFF'
 }) => {
 
     return (
@@ -84,7 +84,7 @@ export const BreathingCircle: React.FC<BreathingCircleProps> = ({
             {/* Text Content - Outside scaling circle for fixed size */}
             <div
                 className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-20 text-center"
-                style={{ color: '#FFFFFF', textShadow: `0 2px 20px ${color}` }}
+                style={{ color: textColor || '#FFFFFF', textShadow: `0 2px 20px ${color}` }}
             >
                 <AnimatePresence mode="wait">
                     {label && (

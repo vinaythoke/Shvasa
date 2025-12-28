@@ -2,7 +2,8 @@
 /* eslint-disable no-restricted-globals */
 
 // Declare self type for TS
-declare const self: DedicatedWorkerGlobalScope;
+// In newer TS versions/configs, self is already recognized as worker scope.
+// If needed, use: (self as DedicatedWorkerGlobalScope).onmessage
 
 const TICK_INTERVAL = 100; // 100ms precision
 
@@ -12,7 +13,7 @@ let pausedTime: number = 0;
 let isPaused: boolean = false;
 
 self.onmessage = (e) => {
-    const { type, payload } = e.data;
+    const { type } = e.data;
 
     switch (type) {
         case 'START':

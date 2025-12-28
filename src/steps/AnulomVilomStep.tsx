@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useStore } from '../store/useStore';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useBreathingTimer } from '../hooks/useBreathingTimer';
 import { BreathingCircle, BreathingPhase } from '../components/BreathingCircle';
 import { STEPS } from '../data/steps';

@@ -3,7 +3,6 @@ import { useStore } from '../store/useStore';
 import { STEPS } from '../data/steps';
 import { Volume2, VolumeX, SkipForward } from 'lucide-react';
 import { useWakeLock } from '../hooks/useWakeLock';
-import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { AudioController } from './AudioController';
 import { motion } from 'framer-motion';

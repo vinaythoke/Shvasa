@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useStore } from '../store/useStore';
 import { motion } from 'framer-motion';
-import { Check } from 'lucide-react';
 
 export const UdgeethStep: React.FC = () => {
     const nextStep = useStore(state => state.nextStep);
