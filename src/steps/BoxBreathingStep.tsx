@@ -18,16 +18,24 @@ export const BoxBreathingStep: React.FC<{ config: StepData }> = ({ config }) => 
 
     return (
         <div className="w-full flex flex-col items-center">
-            <div className="flex gap-2 mb-8 bg-white/10 p-1 rounded-full">
+            <div className="flex gap-2 mb-8 p-1 rounded-full border border-black/5 bg-black/5 backdrop-blur-md shadow-inner">
                 <button
                     onClick={() => setLevel('apprentice')}
-                    className={`px-4 py-1 rounded-full text-xs font-bold uppercase transition-colors ${level === 'apprentice' ? 'bg-white text-black' : 'text-white/50'}`}
+                    className={`px-6 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all duration-300 ${level === 'apprentice'
+                            ? 'bg-white shadow-md scale-105'
+                            : 'text-black/40 hover:text-black/60'
+                        }`}
+                    style={{ color: level === 'apprentice' ? config.circleColor : undefined }}
                 >
                     Apprentice
                 </button>
                 <button
                     onClick={() => setLevel('yogi')}
-                    className={`px-4 py-1 rounded-full text-xs font-bold uppercase transition-colors ${level === 'yogi' ? 'bg-white text-black' : 'text-white/50'}`}
+                    className={`px-6 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all duration-300 ${level === 'yogi'
+                            ? 'bg-white shadow-md scale-105'
+                            : 'text-black/40 hover:text-black/60'
+                        }`}
+                    style={{ color: level === 'yogi' ? config.circleColor : undefined }}
                 >
                     Yogi
                 </button>
