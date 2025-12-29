@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useStore } from '../store/useStore';
-import { BreathingCircle } from '../components/BreathingCircle';
+import { BreathingCircle, BreathingPhase } from '../components/BreathingCircle';
 import { motion, AnimatePresence } from 'framer-motion';
 import { STEPS } from '../data/steps';
+import { useBreathingTimer } from '../hooks/useBreathingTimer';
 
 type Step9Phase = 'hyperventilation' | 'retention' | 'recovery' | 'finished';
 
@@ -17,28 +18,43 @@ export const HighIntensityStep: React.FC = () => {
     const [phase, setPhase] = useState<Step9Phase>('hyperventilation');
     const [countdown, setCountdown] = useState(3);
     const [isCountingDown, setIsCountingDown] = useState(true);
+    const [hyperventilationComplete, setHyperventilationComplete] = useState(false);
 
-    // Hyperventilation Timer
-    const [hvTimeLeft, setHvTimeLeft] = useState(30);
+    // Hyperventilation breathing state
+    const [breathingPhase, setLocalBreathingPhase] = useState<BreathingPhase>('inhale');
+    const [breathingPhaseTime, setBreathingPhaseTime] = useState(2);
+    const { elapsed: hvElapsed, start: hvStart, stop: hvStop, reset: hvReset } = useBreathingTimer();
+
+    // Recovery breathing state
+    const [recoveryBreathingPhase, setRecoveryBreathingPhase] = useState<BreathingPhase>('inhale');
+    const [recoveryPhaseTime, setRecoveryPhaseTime] = useState(5);
+    const { elapsed: recoveryElapsed, isRunning: recoveryIsRunning, start: recoveryStart, stop: recoveryStop, reset: recoveryReset } = useBreathingTimer();
 
     // Retention Timer
     const [retentionTime, setRetentionTime] = useState(0);
     const retentionStartRef = useRef<number | null>(null);
     const retentionIntervalRef = useRef<number | null>(null);
 
-    // Recovery Timer
-    const [recoveryTimeLeft, setRecoveryTimeLeft] = useState(15);
-
-    const TOTAL_ROUNDS = 4; // reduced from 6 for better experience, adjust if needed
+    const TOTAL_ROUNDS = 4;
+    const HYPERVENTILATION_DURATION = 30;
+    const RECOVERY_DURATION = 15;
+    const BREATHING_CYCLE = 4; // 2s inhale + 2s exhale
+    const RECOVERY_CYCLE = 10; // 5s inhale + 5s exhale
 
     // Update global store phase for Layout effects
     useEffect(() => {
-        if (isCountingDown) setBreathingPhase('holdOut');
-        else if (phase === 'hyperventilation') setBreathingPhase('pulse');
-        else if (phase === 'retention') setBreathingPhase('retention');
-        else if (phase === 'recovery') setBreathingPhase('hold');
-        else setBreathingPhase('idle');
-    }, [phase, setBreathingPhase, isCountingDown]);
+        if (isCountingDown) {
+            setBreathingPhase('holdOut');
+        } else if (phase === 'hyperventilation') {
+            setBreathingPhase(breathingPhase);
+        } else if (phase === 'retention') {
+            setBreathingPhase('inhale'); // Stay expanded during retention
+        } else if (phase === 'recovery') {
+            setBreathingPhase(recoveryBreathingPhase);
+        } else {
+            setBreathingPhase('idle');
+        }
+    }, [phase, breathingPhase, recoveryBreathingPhase, setBreathingPhase, isCountingDown]);
 
     // Countdown Logic
     useEffect(() => {
@@ -49,56 +65,78 @@ export const HighIntensityStep: React.FC = () => {
             } else if (countdown === 0) {
                 const timer = setTimeout(() => {
                     setIsCountingDown(false);
+                    setHyperventilationComplete(false);
+                    setLocalBreathingPhase('inhale');
+                    setBreathingPhaseTime(2);
+                    hvStart();
                 }, 1000);
                 return () => clearTimeout(timer);
             }
         }
-    }, [countdown, phase, isCountingDown]);
+    }, [countdown, phase, isCountingDown, hvStart]);
 
-    // Hyperventilation Logic
+    // Hyperventilation Breathing Logic - continues even after timer complete
     useEffect(() => {
-        let interval: number;
         if (phase === 'hyperventilation' && !isCountingDown) {
-            setHvTimeLeft(30);
-            interval = window.setInterval(() => {
-                setHvTimeLeft(prev => {
-                    if (prev <= 1) return 0;
-                    return prev - 1;
-                });
-            }, 1000);
-        }
-        return () => clearInterval(interval);
-    }, [phase, round, isCountingDown]);
+            const elapsedSec = hvElapsed / 1000;
+            const timeInCycle = elapsedSec % BREATHING_CYCLE;
 
-    // Cleanup retention interval on unmount
+            if (timeInCycle < 2) {
+                setLocalBreathingPhase('inhale');
+                setBreathingPhaseTime(2);
+            } else {
+                setLocalBreathingPhase('exhale');
+                setBreathingPhaseTime(2);
+            }
+
+            // Mark complete but keep breathing animation going
+            if (hvElapsed >= HYPERVENTILATION_DURATION * 1000 && !hyperventilationComplete) {
+                setHyperventilationComplete(true);
+            }
+        }
+    }, [hvElapsed, phase, isCountingDown, hyperventilationComplete]);
+
+    // Recovery Breathing Logic - starts with exhale since user just released breath
+    useEffect(() => {
+        if (phase === 'recovery' && recoveryIsRunning) {
+            const elapsedSec = recoveryElapsed / 1000;
+            const timeInCycle = elapsedSec % RECOVERY_CYCLE;
+
+            // First 5 seconds = exhale (circle contracts from inhale state)
+            // Next 5 seconds = inhale
+            if (timeInCycle < 5) {
+                setRecoveryBreathingPhase('exhale');
+                setRecoveryPhaseTime(5);
+            } else {
+                setRecoveryBreathingPhase('inhale');
+                setRecoveryPhaseTime(5);
+            }
+
+            if (recoveryElapsed >= RECOVERY_DURATION * 1000) {
+                recoveryStop();
+                if (round < TOTAL_ROUNDS - 1) {
+                    setRound(r => r + 1);
+                    setPhase('hyperventilation');
+                    setIsCountingDown(true);
+                    setCountdown(3);
+                    setHyperventilationComplete(false);
+                    hvReset();
+                    recoveryReset();
+                } else {
+                    setPhase('finished');
+                }
+            }
+        }
+    }, [recoveryElapsed, recoveryIsRunning, phase, round, recoveryStop, hvReset, recoveryReset]);
+
+    // Cleanup on unmount
     useEffect(() => {
         return () => {
             if (retentionIntervalRef.current) clearInterval(retentionIntervalRef.current);
+            hvStop();
+            recoveryStop();
         };
-    }, []);
-
-    // Recovery Logic
-    useEffect(() => {
-        let interval: number;
-        if (phase === 'recovery') {
-            setRecoveryTimeLeft(15);
-            interval = window.setInterval(() => {
-                setRecoveryTimeLeft(prev => {
-                    if (prev <= 1) {
-                        if (round < TOTAL_ROUNDS - 1) {
-                            setRound(r => r + 1);
-                            setPhase('hyperventilation');
-                        } else {
-                            setPhase('finished');
-                        }
-                        return 0;
-                    }
-                    return prev - 1;
-                });
-            }, 1000);
-        }
-        return () => clearInterval(interval);
-    }, [phase, round]);
+    }, [hvStop, recoveryStop]);
 
     useEffect(() => {
         if (phase === 'finished') {
@@ -108,6 +146,7 @@ export const HighIntensityStep: React.FC = () => {
 
     // Handlers
     const startRetention = () => {
+        hvStop();
         setPhase('retention');
         setRetentionTime(0);
         retentionStartRef.current = Date.now();
@@ -123,7 +162,13 @@ export const HighIntensityStep: React.FC = () => {
             clearInterval(retentionIntervalRef.current);
         }
         addBreathHoldTime(retentionTime, round);
+        // Set exhale phase immediately so circle contracts from inhale state
+        setRecoveryBreathingPhase('exhale');
+        setRecoveryPhaseTime(5);
         setPhase('recovery');
+        setHyperventilationComplete(false);
+        recoveryReset();
+        recoveryStart();
     };
 
     const formatTime = (ms: number) => {
@@ -134,113 +179,160 @@ export const HighIntensityStep: React.FC = () => {
         return `${m}:${s.toString().padStart(2, '0')}.${dec}`;
     };
 
+    // Calculate times for display
+    // hvDisplayTime counts down from 30, then counts up after (showing extra breathing time)
+    const hvElapsedSeconds = Math.floor(hvElapsed / 1000);
+    const hvDisplayTime = hvElapsedSeconds < HYPERVENTILATION_DURATION 
+        ? HYPERVENTILATION_DURATION - hvElapsedSeconds  // Countdown
+        : hvElapsedSeconds - HYPERVENTILATION_DURATION; // Count up after 30s
+    const recoveryTimeLeft = Math.max(0, Math.ceil((RECOVERY_DURATION * 1000 - recoveryElapsed) / 1000));
+
+    // Determine current circle phase and duration
+    const getCirclePhase = (): BreathingPhase => {
+        if (isCountingDown) return 'holdOut';
+        if (phase === 'retention') return 'inhale'; // Stay expanded
+        if (phase === 'recovery') return recoveryBreathingPhase;
+        return breathingPhase;
+    };
+
+    const getCircleDuration = (): number => {
+        if (isCountingDown) return 1;
+        if (phase === 'retention') return 2; // Smooth transition to expanded
+        if (phase === 'recovery') return recoveryPhaseTime;
+        return breathingPhaseTime;
+    };
+
+    // Determine what label to show in circle
+    const getCircleLabel = (): string => {
+        if (isCountingDown) {
+            return countdown > 0 ? countdown.toString() : "GO";
+        }
+        if (phase === 'hyperventilation' && !hyperventilationComplete) {
+            return breathingPhase; // Show inhale/exhale instead of timer
+        }
+        if (phase === 'recovery') {
+            return recoveryBreathingPhase;
+        }
+        return "";
+    };
+
+    // No sublabel needed anymore since we show phase as main label
+    const getCircleSublabel = (): string | undefined => {
+        return undefined;
+    };
+
     return (
-        <div className="w-full h-full flex flex-col items-center justify-center space-y-8 relative">
+        <div className="w-full h-full flex flex-col items-center justify-center space-y-8 relative px-4">
             {/* Background Round Indicator */}
-            <div className="absolute top-12 left-1/2 -translate-x-1/2 text-sm opacity-30 uppercase tracking-[0.3em] font-mono">
+            <motion.div 
+                className="absolute top-8 left-1/2 -translate-x-1/2 text-sm opacity-30 uppercase tracking-[0.3em] font-mono"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 0.3 }}
+                transition={{ duration: 0.6 }}
+            >
                 Round {round + 1} / {TOTAL_ROUNDS}
-            </div>
+            </motion.div>
 
-            <AnimatePresence mode="wait">
-                {phase === 'hyperventilation' && (
-                    <motion.div
-                        key="hv"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="flex flex-col items-center space-y-12"
-                    >
-                        <div className="text-center space-y-2">
-                            <h2 className="text-3xl font-bold tracking-tight text-white/90">Bellows Breath</h2>
-                            <p className="text-sm opacity-60 italic max-w-xs mx-auto">"Burn the impurities of the mind in the fire of discipline."</p>
-                        </div>
+            {/* Title Section - Fixed height to prevent layout shifts */}
+            <motion.div 
+                className="text-center space-y-3 h-24"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.6 }}
+            >
+                <h2 className={`text-2xl md:text-3xl font-bold tracking-tight ${config.colorClass}`}>
+                    Bellows Breath
+                </h2>
+                <p className="text-sm opacity-60 italic max-w-xs mx-auto">
+                    "Burn the impurities of the mind in the fire of discipline."
+                </p>
+            </motion.div>
 
-                        <div className="relative">
-                            <BreathingCircle
-                                phase={isCountingDown ? 'holdOut' : 'pulse'}
-                                duration={isCountingDown ? 1 : 0.6}
-                                color={config.circleColor}
-                                label={isCountingDown
-                                    ? (countdown > 0 ? countdown.toString() : "GO")
-                                    : (hvTimeLeft > 0 ? hvTimeLeft.toString() : "READY")
-                                }
-                            />
-                        </div>
-
-                        {hvTimeLeft === 0 && (
+            {/* Breathing Circle - Single continuous element */}
+            <div className="relative">
+                <BreathingCircle
+                    phase={getCirclePhase()}
+                    duration={getCircleDuration()}
+                    color={config.circleColor}
+                    label={getCircleLabel()}
+                    sublabel={getCircleSublabel()}
+                />
+                
+                {/* Button overlay in center of circle */}
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <AnimatePresence mode="wait">
+                        {/* HOLD button - appears when hyperventilation complete */}
+                        {phase === 'hyperventilation' && hyperventilationComplete && (
                             <motion.button
-                                initial={{ scale: 0.9, opacity: 0 }}
+                                key="hold-btn"
+                                initial={{ scale: 0.8, opacity: 0 }}
                                 animate={{ scale: 1, opacity: 1 }}
+                                exit={{ scale: 0.8, opacity: 0 }}
+                                transition={{ duration: 0.4, ease: "easeInOut" }}
                                 whileTap={{ scale: 0.95 }}
                                 onClick={startRetention}
-                                className="bg-white text-black px-12 py-5 rounded-full text-xl font-bold shadow-2xl tracking-widest uppercase"
+                                className="pointer-events-auto bg-white text-black px-8 py-4 rounded-full text-lg font-bold shadow-2xl tracking-widest uppercase"
                             >
-                                HOLD NOW
+                                HOLD
                             </motion.button>
                         )}
-                    </motion.div>
-                )}
-
-                {phase === 'retention' && (
-                    <motion.div
-                        key="retention"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="flex flex-col items-center justify-center space-y-12 text-center"
-                    >
-                        <div className="space-y-4">
-                            <div className="text-white/20 text-xs uppercase tracking-[0.4em]">Retention Active</div>
-                            <div className="text-7xl font-mono tabular-nums text-white tracking-tight">
-                                {formatTime(retentionTime)}
-                            </div>
-                        </div>
-
-                        <div className="opacity-40">
-                            <BreathingCircle
-                                phase="retention"
-                                duration={2}
-                                color="#FFFFFF"
-                            />
-                        </div>
-
-                        <div className="space-y-8">
-                            <p className="text-white/40 italic text-base max-w-sm font-serif leading-relaxed px-6">
-                                "When the breath wanders the mind also is unsteady. But when the breath is calmed the mind too will be still."
-                            </p>
-
-                            <button
-                                onClick={stopRetention}
-                                className="w-64 bg-white/10 border border-white/20 text-white backdrop-blur-md py-5 rounded-2xl text-xl font-medium active:scale-95 transition-all hover:bg-white/20"
+                        
+                        {/* EXHALE button with timer - during retention */}
+                        {phase === 'retention' && (
+                            <motion.div
+                                key="exhale-btn"
+                                initial={{ scale: 0.8, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                exit={{ scale: 0.8, opacity: 0 }}
+                                transition={{ duration: 0.4, ease: "easeInOut" }}
+                                className="pointer-events-auto text-center"
                             >
-                                EXHALE
-                            </button>
-                        </div>
-                    </motion.div>
-                )}
+                                <motion.button
+                                    whileTap={{ scale: 0.95 }}
+                                    onClick={stopRetention}
+                                    className="bg-white/20 border border-white/40 text-white backdrop-blur-md px-8 py-4 rounded-full text-lg font-bold tracking-widest uppercase hover:bg-white/30 transition-colors"
+                                >
+                                    EXHALE
+                                </motion.button>
+                                <p className="text-white/60 text-sm mt-3 font-medium">
+                                    Inhale and Hold
+                                </p>
+                                <p className="text-white text-2xl font-mono mt-2 tabular-nums">
+                                    {formatTime(retentionTime)}
+                                </p>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
+            </div>
 
+            {/* Timer display outside circle - always visible to prevent layout shift */}
+            <div className="text-sm font-mono opacity-50 h-6 flex items-center justify-center">
+                {phase === 'hyperventilation' && !isCountingDown && (
+                    <span>
+                        {hyperventilationComplete 
+                            ? `+${Math.floor(hvDisplayTime / 60)}:${(hvDisplayTime % 60).toString().padStart(2, '0')}`
+                            : `${Math.floor(hvDisplayTime / 60)}:${(hvDisplayTime % 60).toString().padStart(2, '0')}`
+                        }
+                    </span>
+                )}
                 {phase === 'recovery' && (
-                    <motion.div
-                        key="recovery"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="flex flex-col items-center space-y-12"
-                    >
-                        <div className="text-center space-y-2">
-                            <h2 className="text-3xl font-bold text-white/90 uppercase tracking-tighter">Recovery</h2>
-                            <p className="text-sm opacity-60 uppercase tracking-widest">Release & Relax</p>
-                        </div>
-
-                        <BreathingCircle
-                            phase="hold"
-                            duration={15}
-                            color="#FFFFFF"
-                            label={recoveryTimeLeft.toString()}
-                        />
-                    </motion.div>
+                    <span>{Math.floor(recoveryTimeLeft / 60)}:{(recoveryTimeLeft % 60).toString().padStart(2, '0')}</span>
                 )}
-            </AnimatePresence>
+                {/* Empty space holder for countdown and retention phases */}
+                {(isCountingDown || phase === 'retention') && (
+                    <span className="invisible">0:00</span>
+                )}
+            </div>
+
+            {/* Next round indicator - always reserve space to prevent layout shift */}
+            <div className="text-center h-5">
+                {phase === 'recovery' && round < TOTAL_ROUNDS - 1 && (
+                    <p className="text-white/40 text-xs">
+                        Next: Round {round + 2} of {TOTAL_ROUNDS}
+                    </p>
+                )}
+            </div>
         </div>
     );
 };

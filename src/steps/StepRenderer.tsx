@@ -57,13 +57,15 @@ export const StepRenderer: React.FC = () => {
         }
     };
 
+    const isWelcomeStep = step.id === 'sankalpa';
+
     return (
         <AnimatePresence mode="wait">
             <motion.div
                 key={step.id}
-                initial={{ opacity: 0, filter: 'blur(10px)' }}
-                animate={{ opacity: 1, filter: 'blur(0px)' }}
-                exit={{ opacity: 0, filter: 'blur(10px)' }}
+                initial={isWelcomeStep ? { opacity: 0 } : { opacity: 0, filter: 'blur(10px)' }}
+                animate={isWelcomeStep ? { opacity: 1 } : { opacity: 1, filter: 'blur(0px)' }}
+                exit={isWelcomeStep ? { opacity: 0 } : { opacity: 0, filter: 'blur(10px)' }}
                 transition={{ duration: 0.6, ease: 'easeInOut' }}
                 className="w-full h-full flex items-center justify-center"
             >

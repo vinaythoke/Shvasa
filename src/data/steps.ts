@@ -53,13 +53,13 @@ export const STEPS: StepData[] = [
         title: 'Udgeeth',
         subtitle: 'Om Chanting',
         description: 'Chant Om 5 times. 25% "O", 75% "M".',
-        theme: 'tamas',
-        colorClass: 'text-indigo-900',
-        bgClass: 'bg-indigo-100',
-        textClass: 'text-indigo-950',
-        hexColor: '#D1C4E9',
-        gradientColors: ['#EDE7F6', '#D1C4E9', '#9575CD'],
-        circleColor: '#5E35B1', // Deep Purple 600
+        theme: 'rajas',
+        colorClass: 'text-orange-900',
+        bgClass: 'bg-orange-50',
+        textClass: 'text-orange-950',
+        hexColor: '#FFF3E0',
+        gradientColors: ['#FFF3E0', '#FFE0B2', '#FFB74D'],
+        circleColor: '#F57C00', // Deep Orange 700 - Saffron-like
         circleTextColor: '#FFFFFF'
     },
     {

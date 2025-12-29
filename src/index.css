@@ -28,7 +28,7 @@
 
   color-scheme: light dark;
   color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  background-color: rgb(230, 242, 255);
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -48,6 +48,7 @@ body {
   user-select: none;
   /* Prevent text selection */
   -webkit-user-select: none;
+  background-color: rgb(230, 242, 255);
 }
 
 #root {
